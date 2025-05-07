@@ -8,6 +8,7 @@ interface Client {
   projectBasePath: string;
 }
 
+let isActive = false;
 let client: Client | undefined;
 let outputChannel: vscode.OutputChannel;
 
@@ -54,7 +55,10 @@ export function activate(context: vscode.ExtensionContext) {
 
     socket.on('disconnect', () => {
       outputChannel.appendLine('AiderDesk Connector: Disconnected from server');
-      client = undefined;
+      // Reconnect after disconnect if still active
+      if (isActive) {
+        socket.connect();
+      }
     });
 
     socket.on('error', (error: any) => {
@@ -67,6 +71,9 @@ export function activate(context: vscode.ExtensionContext) {
         cleanup();
       }
     });
+
+    isActive = true;
+    socket.connect();
 
   } catch (error) {
     outputChannel.appendLine(`AiderDesk Connector: Failed to connect to server: ${error}`);
@@ -147,6 +154,7 @@ function sendFileEvent(action: 'add-file' | 'drop-file', fullPath: string) {
 
 function cleanup() {
   if (client) {
+    isActive = false;
     client.socket.disconnect();
     client = undefined;
   }
